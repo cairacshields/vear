@@ -6,5 +6,5 @@ Connect by voice
 Allow people to connect socially using their voice 
 Spread awareness about important topics, give motivations, share experiences, voice your opinion, get a conversation going. 
 
-![Screenshot](https://drive.google.com/file/d/1R1-6v2pWmXGbK5KGQBpwLDW3J5YuxLq1/view)
+![Screenshot](https://github.com/cairacshields/vear/blob/master/Simulator%20Screen%20Shot%20-%20iPhone%2011%20Pro%20Max%20-%202020-01-05%20at%2020.20.20.png)
 
