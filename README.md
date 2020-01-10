@@ -2,15 +2,9 @@
 
 Connect by voice
 
-## Getting Started
+## Purpose
+Allow people to connect socially using their voice 
+Spread awareness about important topics, give motivations, share experiences, voice your opinion, get a conversation going. 
 
-This project is a starting point for a Flutter application.
+![Screenshot](https://drive.google.com/file/d/1R1-6v2pWmXGbK5KGQBpwLDW3J5YuxLq1/view?usp=sharing)
 
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://flutter.dev/docs/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://flutter.dev/docs/cookbook)
-
-For help getting started with Flutter, view our
-[online documentation](https://flutter.dev/docs), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
