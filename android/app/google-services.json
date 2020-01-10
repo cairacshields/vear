@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "308000076422",
+    "firebase_url": "https://vear-83df3.firebaseio.com",
+    "project_id": "vear-83df3",
+    "storage_bucket": "vear-83df3.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:308000076422:android:305895f05cd4b04e1a1707",
+        "android_client_info": {
+          "package_name": "com.getstarty.vear"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "308000076422-vp4d64798nda5q4qd4ar7aku12jbj37s.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyACYd_AxLGF7YfWkHGxE5NP9YQMhSFj5Ck"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "308000076422-vp4d64798nda5q4qd4ar7aku12jbj37s.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
