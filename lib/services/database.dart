@@ -176,4 +176,123 @@ class Database {
       print("Error getting user followers");
     });
   }
+
+  Future<void> removeRecordingFromUser(String uid, String recordingTitle) async {
+    //Add the recording to the user specific node...
+    await _databaseReference.child("users").child(uid).child("recordings").once().then((DataSnapshot snapshot){
+      if (snapshot.value != null) {
+        (snapshot.value as Map<dynamic, dynamic>).forEach((key, value) async{
+          if (value["recordingTitle"] == recordingTitle) {
+            await _databaseReference.child("users").child(uid).child("recordings").child(key).remove();
+          }
+        });
+      }
+    }).catchError((error){
+      print("Error removing user recording $error");
+    });
+
+    await _databaseReference.child("allRecordings").once().then((DataSnapshot snapshot){
+      if (snapshot.value != null) {
+        (snapshot.value as Map<dynamic, dynamic>).forEach((key, value) async{
+          if (value["recordingTitle"] == recordingTitle) {
+            await _databaseReference.child("allRecordings").child(key).remove();
+          }
+        });
+      }
+    }).catchError((error){
+      print("Error removing user recording from mass recordings $error");
+    });
+  }
+
+  Future<bool> sendChat(String creatorId, String viewingUserId, String senderName, String text) async {
+    return await _databaseReference.child("users").child(creatorId).child("messages").child(viewingUserId).child("messages").push().set({
+        "text": text,
+        "sender": viewingUserId,
+        "receiver": creatorId,
+        "sender_name": senderName,
+        "time": DateTime.now().toIso8601String()
+    }).then((value) async {
+      return await _databaseReference.child("users").child(viewingUserId).child("messages").child(creatorId).child("messages").push().set({
+        "text": text,
+        "sender": viewingUserId,
+        "receiver": creatorId,
+        "sender_name": senderName,
+        "time": DateTime.now().toIso8601String()
+      }).then((value){
+        return true;
+      }).catchError((error){
+        print("Error adding chat message to DB: $error");
+        return false;
+      });
+    }).catchError((error){
+      print("Error adding chat message to DB: $error");
+      return false;
+    });
+  }
+
+  Future<bool> removeChat(String removingUserId, String chattingWithId) async {
+    return await _databaseReference.child("users").child(removingUserId).child("messages").child(chattingWithId).remove().then((value){
+      return true;
+    }).catchError((error){
+      print("Error deleting message: $error");
+      return false;
+    });
+  }
+
+  //TODO ~ Add comment to specific recording
+  Future<void> addRecordingComment(String creatorId, String commenterId, String recordingTitle, String comment) async {
+    await _databaseReference.child("allRecordings").once().then((
+        DataSnapshot snapshot) {
+      if (snapshot.value != null) {
+        (snapshot.value as Map<dynamic, dynamic>).forEach((key, value) {
+          if (value["recordingTitle"] == recordingTitle) {
+            _databaseReference.child("allRecordings").child(key).child(
+                "comments").push().set(
+                {"commenterId": commenterId, "comment": comment, "time": DateTime.now().toIso8601String()});
+          }
+        });
+      }
+    }).catchError((error) {
+      print("Error adding comment to recording node in DB: $error");
+    });
+
+    await _databaseReference.child("users").child(creatorId)
+        .child("recordings")
+        .once()
+        .then((DataSnapshot snapshot) {
+      if (snapshot.value != null) {
+        (snapshot.value as Map<dynamic, dynamic>).forEach((key, value) {
+          if (value["recordingTitle"] == recordingTitle) {
+            _databaseReference.child("users").child(creatorId).child(
+                "recordings").child(key).child("comments").push().set(
+                {"commenterId": commenterId, "comment": comment, "time": DateTime.now().toIso8601String()});
+          }
+        });
+      }
+    }).catchError((error) {
+      print(
+          "Error adding comment to specific user recording node in DB: $error");
+    });
+  }
+
+  Future<dynamic> getRecordingComments(String creatorId, String recordingTitle) async {
+    dynamic comments;
+    return await _databaseReference.child("allRecordings")
+        .once()
+        .then((DataSnapshot snapshot) {
+      if (snapshot.value != null) {
+        (snapshot.value as Map<dynamic, dynamic>).forEach((key, value) {
+          if (value["recordingTitle"] == recordingTitle) {
+            //rint(value["comments"]);
+            comments = value["comments"];
+          }
+        });
+        return comments;
+      }
+    }).catchError((error) {
+      print(
+          "Error gettimg comments in DB: $error");
+      return null;
+    });
+  }
 }

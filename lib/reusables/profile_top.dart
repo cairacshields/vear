@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
@@ -6,6 +8,9 @@ import 'package:vear/services/database.dart';
 import 'package:palette_generator/palette_generator.dart';
 import 'dart:async';
 import 'dart:io';
+import 'package:vear/screens/message_screen.dart';
+import 'package:vear/screens/individual_message.dart';
+
 
 class TopSectionProfile extends StatefulWidget {
   final dynamic user;
@@ -23,6 +28,7 @@ class _TopSectionProfileState extends State<TopSectionProfile> {
   Storage _storage = Storage();
   File _image;
   PaletteGenerator _paletteGenerator;
+  dynamic viewingUser;
 
   Color bodyColor;
   Color titleColor;
@@ -90,11 +96,15 @@ class _TopSectionProfileState extends State<TopSectionProfile> {
               _image = image;
               getUserProfileImage();
             });
+          } else {
+            print("Image value is null");
           }
         }).catchError((error){
           print("Error opening image picker: $error");
         });
-      });
+      }).catchError((error){
+        print("Error selecting profile image: $error");
+    });
   }
 
   @override
@@ -104,6 +114,7 @@ class _TopSectionProfileState extends State<TopSectionProfile> {
     isCurentUserViewing();
     getFollowingStatus();
     setUserCounts();
+    getViewingUser();
     getPalette(getUserProfileImage());
   }
 
@@ -120,172 +131,239 @@ class _TopSectionProfileState extends State<TopSectionProfile> {
       setState(() {
         _paletteGenerator = value;
 
-        bodyColor = _paletteGenerator.vibrantColor.bodyTextColor != null ? _paletteGenerator.vibrantColor.bodyTextColor: Colors.black;
-        titleColor =  _paletteGenerator.vibrantColor.titleTextColor != null ? _paletteGenerator.vibrantColor.titleTextColor: Colors.black;
-        backgroundColor = _paletteGenerator.vibrantColor.color != null ? _paletteGenerator.vibrantColor.color: Colors.black26;
+        bodyColor = _paletteGenerator.vibrantColor != null ? _paletteGenerator.vibrantColor.bodyTextColor: Colors.black;
+        titleColor =  _paletteGenerator.vibrantColor != null ? _paletteGenerator.vibrantColor.titleTextColor: Colors.black;
+        backgroundColor = _paletteGenerator.vibrantColor != null ? _paletteGenerator.vibrantColor.color: Colors.black26;
       });
     }).catchError((error){
       print("Error grabbing Palette from image provided: $error");
     });
   }
 
+  void getViewingUser() async {
+    await _database.getUser(widget.viewingUserId).then((user){
+      viewingUser = user;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    double _sigmaX = 0.0; // from 0-10
+    double _sigmaY = 0.0; // from 0-10
+    double _opacity = 0.3; // from 0-1.0
+
     return Container(
       color: backgroundColor != null ? backgroundColor : Colors.grey,
       height: 360.0,
       width: MediaQuery.of(context).size.width,
-      child: Container(
-        child: Column(
-          children: <Widget>[
-            Stack(
+      child: Stack(
+        children: <Widget>[
+         BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: _sigmaX, sigmaY: _sigmaY),
+            child: Container(
+              color: Colors.white.withOpacity(_opacity),
+            ),
+          ),
+          Container(
+            child: Column(
               children: <Widget>[
-                GestureDetector(
-                  child: Container(
-                    height: 100.0,
-                    width: 100.0,
-                    margin: EdgeInsets.only(top: 40.0),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      image: DecorationImage(
-                        fit: BoxFit.cover,
-                        image: getUserProfileImage(),
-                      )
-                    ),
-                  ),
-                  onTap: () async {
-                    //Should open image picker
-                    await chooseFile();
-                  },
-                ),
-                _isSameUser ? Container(
-                  margin: EdgeInsets.only(top: 110.0, right: 50.0),
-                  child: Icon(
-                    Icons.edit,
-                    color: const Color(0xFF679436),
-                  ),
-                ) : SizedBox()
-              ],
-            ),
-            Container(
-              margin: EdgeInsets.only(top: 15.0),
-              child: Text(
-                widget.user["full_name"],
-                style: GoogleFonts.ubuntu(textStyle: TextStyle(fontSize: 35.0, color: titleColor != null ? titleColor : Colors.black)),
-              ),
-            ),
-            Container(
-              height: 100.0,
-              margin: EdgeInsets.only(top: 15.0, left: 10.0, right: 10.0),
-              child: Center(
-                  child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: <Widget>[
-                    Container(
-                      margin:
-                          EdgeInsets.only(top: 15.0, left: 15.0, right: 15.0),
-                      child: Center(
-                        child: Column(
-                          children: <Widget>[
-                            Icon(
-                              Icons.person_add,
-                              color: const Color(0xFF679436),
-                            ),
-                            Text(
-                              "Followers",
-                              style: GoogleFonts.ubuntu(
-                                  textStyle: TextStyle(fontSize: 20.0,
-                                      color:  bodyColor != null ? bodyColor: Colors.black))
-                              ,
-                            ),
-                            Text(
-                              followerCount,
-                              style: GoogleFonts.ubuntu(
-                                  textStyle: TextStyle(fontSize: 15.0,
-                                      color:  bodyColor != null ? bodyColor: Colors.black)),
+                Stack(
+                  children: <Widget>[
+                    GestureDetector(
+                      child: Container(
+                        height: 100.0,
+                        width: 100.0,
+                        margin: EdgeInsets.only(top: 40.0),
+                        decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            image: DecorationImage(
+                              fit: BoxFit.cover,
+                              image: getUserProfileImage(),
                             )
-                          ],
                         ),
                       ),
+                      onTap: () async {
+                        //Should open image picker
+                        await chooseFile();
+                      },
                     ),
-                    Container(
-                      margin:
-                          EdgeInsets.only(top: 15.0, left: 15.0, right: 15.0),
-                      child: Column(
-                        children: <Widget>[
-                          Icon(
-                            Icons.all_inclusive,
-                            color: const Color(0xFF679436),
-                          ),
-                          Text(
-                            "Following",
-                            style: GoogleFonts.ubuntu(
-                                textStyle: TextStyle(fontSize: 20.0,
-                                    color: bodyColor != null ? bodyColor: Colors.black)),
-                          ),
-                          Text(
-                            followingCount,
-                            style: GoogleFonts.ubuntu(
-                                textStyle: TextStyle(fontSize: 15.0,
-                                    color:  bodyColor != null ? bodyColor: Colors.black)),
-                          )
-                        ],
+                    _isSameUser ? Container(
+                      margin: EdgeInsets.only(top: 110.0, right: 50.0),
+                      child: Icon(
+                        Icons.edit,
+                        color: const Color(0xFF679436),
                       ),
-                    ),
-                    Container(
-                      margin:
-                          EdgeInsets.only(top: 15.0, left: 15.0, right: 15.0),
-                      child: Column(
-                        children: <Widget>[
-                          Icon(
-                            Icons.record_voice_over,
-                            color: const Color(0xFF679436),
-                          ),
-                          Text(
-                            "Posts",
-                            style: GoogleFonts.ubuntu(
-                                textStyle: TextStyle(fontSize: 20.0,
-                                    color: bodyColor != null ? bodyColor : Colors.black)),
-                          ),
-                          Text(
-                            recordingsCount,
-                            style: GoogleFonts.ubuntu(
-                                textStyle: TextStyle(fontSize: 15.0,
-                                    color: bodyColor != null ? bodyColor: Colors.black)),
-                          )
-                        ],
-                      ),
-                    ),
-                  ])),
-            ),
-
-            _isSameUser ? SizedBox() : Container(
-              child: Center(
-                child: RaisedButton(
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18.0),
-                      side: BorderSide(color: const Color(0xFF679436))),
-                  onPressed: () async {
-                    setState(() {
-                      if (_alreadyFollowing) {
-                        unFollow();
-                      } else {
-                        follow();
-                      }
-                      getFollowingStatus();
-                    });
-                  },
-                  color: _alreadyFollowing ? Colors.black26 : const Color(0xFF679436),
-                  textColor: Colors.white,
-                  child: Text( _alreadyFollowing ? "Unfollow".toUpperCase() : "Follow".toUpperCase(),
-                      style: TextStyle(fontSize: 14)),
+                    ) : SizedBox()
+                  ],
                 ),
-              )
-            )
+                Container(
+                  margin: EdgeInsets.only(top: 15.0),
+                  child: Text(
+                    widget.user["full_name"],
+                    style: GoogleFonts.ubuntu(textStyle: TextStyle(fontSize: 35.0, color: titleColor != null ? titleColor : Colors.black)),
+                  ),
+                ),
+                Container(
+                  height: 100.0,
+                  margin: EdgeInsets.only(top: 15.0, left: 10.0, right: 10.0),
+                  child: Center(
+                      child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: <Widget>[
+                            Container(
+                              margin:
+                              EdgeInsets.only(top: 15.0, left: 15.0, right: 15.0),
+                              child: Center(
+                                child: Column(
+                                  children: <Widget>[
+                                    Icon(
+                                      Icons.person_add,
+                                      color: const Color(0xFF679436),
+                                    ),
+                                    Text(
+                                      "Followers",
+                                      style: GoogleFonts.ubuntu(
+                                          textStyle: TextStyle(fontSize: 20.0,
+                                              color:  bodyColor != null ? bodyColor: Colors.black))
+                                      ,
+                                    ),
+                                    Text(
+                                      followerCount,
+                                      style: GoogleFonts.ubuntu(
+                                          textStyle: TextStyle(fontSize: 15.0,
+                                              color:  bodyColor != null ? bodyColor: Colors.black)),
+                                    )
+                                  ],
+                                ),
+                              ),
+                            ),
+                            Container(
+                              margin:
+                              EdgeInsets.only(top: 15.0, left: 15.0, right: 15.0),
+                              child: Column(
+                                children: <Widget>[
+                                  Icon(
+                                    Icons.all_inclusive,
+                                    color: const Color(0xFF679436),
+                                  ),
+                                  Text(
+                                    "Following",
+                                    style: GoogleFonts.ubuntu(
+                                        textStyle: TextStyle(fontSize: 20.0,
+                                            color: bodyColor != null ? bodyColor: Colors.black)),
+                                  ),
+                                  Text(
+                                    followingCount,
+                                    style: GoogleFonts.ubuntu(
+                                        textStyle: TextStyle(fontSize: 15.0,
+                                            color:  bodyColor != null ? bodyColor: Colors.black)),
+                                  )
+                                ],
+                              ),
+                            ),
+                            Container(
+                              margin:
+                              EdgeInsets.only(top: 15.0, left: 15.0, right: 15.0),
+                              child: Column(
+                                children: <Widget>[
+                                  Icon(
+                                    Icons.record_voice_over,
+                                    color: const Color(0xFF679436),
+                                  ),
+                                  Text(
+                                    "Posts",
+                                    style: GoogleFonts.ubuntu(
+                                        textStyle: TextStyle(fontSize: 20.0,
+                                            color: bodyColor != null ? bodyColor : Colors.black)),
+                                  ),
+                                  Text(
+                                    recordingsCount,
+                                    style: GoogleFonts.ubuntu(
+                                        textStyle: TextStyle(fontSize: 15.0,
+                                            color: bodyColor != null ? bodyColor: Colors.black)),
+                                  )
+                                ],
+                              ),
+                            ),
+                          ])),
+                ),
 
-          ],
-        ),
-      ),
+                _isSameUser ? Container(
+                    child: Center(
+                      child: RaisedButton(
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18.0),
+                            side: BorderSide(color: const Color(0xFF679436))),
+                        onPressed: () async {
+                          //Bring to messages screen
+                          Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (BuildContext context) =>
+                                      MessageScreen(widget.user)));
+                        },
+                        color: const Color(0xFF679436),
+                        textColor: Colors.white,
+                        child: Text( "messages".toUpperCase(),
+                            style: TextStyle(fontSize: 14)),
+                      ),
+                    )
+                ) : Center(
+                  child: Container(
+                    child: Row (
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: <Widget>[
+                        Container(
+                          margin: EdgeInsets.only(right: 5.0),
+                          child: RaisedButton(
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(18.0),
+                                side: BorderSide(color: const Color(0xFF679436))),
+                            onPressed: () async {
+                              setState(() {
+                                if (_alreadyFollowing) {
+                                  unFollow();
+                                } else {
+                                  follow();
+                                }
+                                getFollowingStatus();
+                              });
+                            },
+                            color: _alreadyFollowing ? Colors.black26 : const Color(0xFF679436),
+                            textColor: Colors.white,
+                            child: Text( _alreadyFollowing ? "Unfollow".toUpperCase() : "Follow".toUpperCase(),
+                                style: TextStyle(fontSize: 14)),
+                          ),
+                        ),
+                        RaisedButton(
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18.0),
+                              side: BorderSide(color: const Color(0xFF679436))),
+                          onPressed: () async {
+                            setState(() {
+                              //Start a chat or continue existing chat
+                              Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (BuildContext context) =>
+                                          IndividualMessageScreen(widget.user["id"], widget.user["full_name"], widget.viewingUserId, viewingUser)));
+                            });
+                          },
+                          color: _alreadyFollowing ? Colors.black26 : const Color(0xFF679436),
+                          textColor: Colors.white,
+                          child: Text( "message".toUpperCase(),
+                              style: TextStyle(fontSize: 14)),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+
+              ],
+            ),
+          ),
+        ],
+      )
     );
   }
 }

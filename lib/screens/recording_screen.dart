@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter_sound/android_encoder.dart';
 import 'package:vear/services/database.dart';
 import 'package:vear/services/storage.dart';
 import 'package:flutter_sound/flutter_sound.dart';
@@ -30,6 +32,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
   Database _database = Database();
   Storage _storage = Storage();
   final _formKey = GlobalKey<FormState>();
+  t_CODEC _codec = t_CODEC.CODEC_AAC;
   final GlobalKey<ScaffoldState> _scaffoldKey = new GlobalKey<ScaffoldState>();
   FlutterSound flutterSound = new FlutterSound();
   StreamSubscription<RecordStatus> _recorderSubscription;
@@ -44,6 +47,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
   final tagsController = TextEditingController();
 
   bool isRecording = false;
+  String recordingFilePath;
   File recordingFile;
   List<String> tags = [];
 
@@ -74,15 +78,16 @@ class _RecordingScreenState extends State<RecordingScreen> {
   }
 
   Future chooseFile() async {
-    await ImagePicker.pickImage(source: ImageSource.gallery).then((image) async {
-        if (image != null) {
-          setState(() {
-            _image = image;
-          });
-        }
-      }).catchError((error){
-        print("Error opening image picker: $error");
-      });
+    await ImagePicker.pickImage(source: ImageSource.gallery)
+        .then((image) async {
+      if (image != null) {
+        setState(() {
+          _image = image;
+        });
+      }
+    }).catchError((error) {
+      print("Error opening image picker: $error");
+    });
   }
 
   void onTagsFieldChanged() {
@@ -122,21 +127,28 @@ class _RecordingScreenState extends State<RecordingScreen> {
           ),
         ),
         onTap: () async {
-          //Start recording
-          setState(() {
-            isRecording = true;
-          });
           await flutterSound
-              .startRecorder(Platform.isIOS ? 'ios.aac' : 'android.aac')
-              .then((path) {
+              .startRecorder(
+            Platform.isIOS ? 'ios.aac' : 'android.aac',
+            codec: _codec,
+            sampleRate: 16000,
+            bitRate: 16000,
+            numChannels: 1,
+            androidAudioSource: AndroidAudioSource.MIC,
+          )
+          .then((path) {
             print('startRecorder: $path');
-
+              recordingFilePath = path;
             _recorderSubscription =
                 flutterSound.onRecorderStateChanged.listen((e) {
               DateTime date = new DateTime.fromMillisecondsSinceEpoch(
                   e.currentPosition.toInt());
               String txt = formatDate(date, [mm, ":", ss, ":", SSS]);
               print(txt);
+            });
+
+            setState(() {
+              isRecording = true;
             });
           }).catchError((error) {
             print("Error starting recording: $error");
@@ -155,22 +167,23 @@ class _RecordingScreenState extends State<RecordingScreen> {
           color: const Color(0xFFEEF5DB),
         ),
         onTap: () async {
-          setState(() {
-            isRecording = false;
-          });
           //Stop recording
           await flutterSound.stopRecorder().then((value) {
             //Value should hold our audio file
             print('stopRecorder: ${value.substring(8)}');
 
-            recordingFile = File(value.substring(8));
-
+            recordingFile = File(recordingFilePath);
+            print('stopRecorder: ${recordingFile}');
             if (_recorderSubscription != null) {
               _recorderSubscription.cancel();
               _recorderSubscription = null;
             }
+
+            setState(() {
+              isRecording = false;
+            });
           }).catchError((error) {
-            print("Error stoping recoring: $error");
+            print("Error stoping recoring: ${error.message}");
           });
         },
       ),
@@ -182,8 +195,12 @@ class _RecordingScreenState extends State<RecordingScreen> {
     return Scaffold(
       key: _scaffoldKey,
       appBar: AppBar(
-        title: Text("Record"),
-        backgroundColor: const Color(0xFF679436),
+        title: Text(
+          "Record",
+          style: TextStyle(color: Colors.black),
+        ),
+        backgroundColor: Colors.white,
+        iconTheme: IconThemeData(color: Colors.black),
         centerTitle: true,
       ),
       body: Container(
@@ -203,7 +220,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
                   isRecording == true
                       ? Container(
                           width: MediaQuery.of(context).size.width / 2,
-                          margin: EdgeInsets.only(left: 30.0),
+                          margin: EdgeInsets.only(left: 30.0, top: 20.0),
                           child: Image.asset(
                             "assets/gifs/recording.gif",
                             height: 125.0,
@@ -332,7 +349,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
                   ),
                   tags.length > 0
                       ? Container(
-                    margin: EdgeInsets.only(top: 10.0, bottom: 10.0),
+                          margin: EdgeInsets.only(top: 10.0, bottom: 10.0),
                           child: Tags(
                               itemCount: tags.length,
                               itemBuilder: (int index) {
@@ -343,8 +360,10 @@ class _RecordingScreenState extends State<RecordingScreen> {
                                   textColor: Colors.black,
                                   textActiveColor: Colors.black,
                                   //textStyle:GoogleFonts.ubuntu(),
-                                  removeButton: ItemTagsRemoveButton(icon: Icons.close, ),
-                                  onRemoved: (){
+                                  removeButton: ItemTagsRemoveButton(
+                                    icon: Icons.close,
+                                  ),
+                                  onRemoved: () {
                                     setState(() {
                                       tags.removeAt(index);
                                     });
@@ -369,77 +388,92 @@ class _RecordingScreenState extends State<RecordingScreen> {
                           style: TextStyle(fontSize: 14)),
                     ),
                   ),
-                  !_loading ? RaisedButton(
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18.0),
-                        side: BorderSide(color: const Color(0xFF679436))),
-                    onPressed: () async {
-                      if (_formKey.currentState.validate()) {
-                        //Make sure we're not still recording
-                        if (recordingFile != null && _image != null) {
-                          if (_recorderSubscription != null) {
-                            _scaffoldKey.currentState.showSnackBar(
-                                stillRecording);
-                          } else {
-                            //We seem to be gtg!
-                            _storage.uploadUserRecording(
-                                widget.user["id"], titleController.text,
-                                descriprionController.text, tags, _image ,recordingFile)
-                                .then((downloadUrl) {
-                              if (downloadUrl != null) {
-                                showDialog(
-                                    context: context,
-                                    builder: (_) => NetworkGiffyDialog(
-                                      image: Image.network(
-                                        "https://media.giphy.com/media/yoJC2El7xJkYCadlWE/giphy.gif",
-                                        fit: BoxFit.cover,
-                                      ),
-                                      entryAnimation: EntryAnimation.TOP_LEFT,
-                                      title: Text(
-                                        'Thanks for the contribution!',
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(
-                                            fontSize: 22.0, fontWeight: FontWeight.w600),
-                                      ),
-                                      description: Text(
-                                        'Sharing your words will help shape the world! Please keep contributing.',
-                                        textAlign: TextAlign.center,
-                                      ),
-                                      onCancelButtonPressed: (){
-                                        Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                                builder: (BuildContext context) =>
-                                                    HomeScreen((widget.user))));
-                                      },
-                                      buttonOkText: Text("Go Home"),
-                                      onOkButtonPressed: () {
-                                        Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                                builder: (BuildContext context) =>
-                                                    HomeScreen((widget.user))));
-                                      },
-                                    ));
+                  !_loading
+                      ? RaisedButton(
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18.0),
+                              side: BorderSide(color: const Color(0xFF679436))),
+                          onPressed: () async {
+                            if (_formKey.currentState.validate()) {
+                              //Make sure we're not still recording
+                              if (recordingFile != null && _image != null) {
+                                if (_recorderSubscription != null) {
+                                  _scaffoldKey.currentState
+                                      .showSnackBar(stillRecording);
+                                } else {
+                                  //We seem to be gtg!
+                                  _storage
+                                      .uploadUserRecording(
+                                          widget.user["id"],
+                                          titleController.text,
+                                          descriprionController.text,
+                                          tags,
+                                          _image,
+                                          recordingFile)
+                                      .then((downloadUrl) {
+                                    if (downloadUrl != null) {
+                                      showDialog(
+                                          context: context,
+                                          builder: (_) => NetworkGiffyDialog(
+                                                image: Image.network(
+                                                  "https://media.giphy.com/media/yoJC2El7xJkYCadlWE/giphy.gif",
+                                                  fit: BoxFit.cover,
+                                                ),
+                                                entryAnimation:
+                                                    EntryAnimation.TOP_LEFT,
+                                                title: Text(
+                                                  'Thanks for the contribution!',
+                                                  textAlign: TextAlign.center,
+                                                  style: TextStyle(
+                                                      fontSize: 22.0,
+                                                      fontWeight:
+                                                          FontWeight.w600),
+                                                ),
+                                                description: Text(
+                                                  'Sharing your words will help shape the world! Please keep contributing.',
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                                onCancelButtonPressed: () {
+                                                  Navigator.push(
+                                                      context,
+                                                      MaterialPageRoute(
+                                                          builder: (BuildContext
+                                                                  context) =>
+                                                              HomeScreen((widget
+                                                                  .user))));
+                                                },
+                                                buttonOkText: Text("Go Home"),
+                                                onOkButtonPressed: () {
+                                                  Navigator.push(
+                                                      context,
+                                                      MaterialPageRoute(
+                                                          builder: (BuildContext
+                                                                  context) =>
+                                                              HomeScreen((widget
+                                                                  .user))));
+                                                },
+                                              ));
+                                    }
+                                  }).catchError((error) {
+                                    print(
+                                        "Error uploading user recording: $error");
+                                    _scaffoldKey.currentState
+                                        .showSnackBar(uploadError);
+                                  });
+                                }
+                              } else {
+                                print("No recording file or image loaded");
+                                _scaffoldKey.currentState
+                                    .showSnackBar(noRecording);
                               }
-                            }).catchError((error) {
-                              print("Error uploading user recording: $error");
-                              _scaffoldKey.currentState.showSnackBar(
-                                  uploadError);
-                            });
-                          }
-                        } else {
-                          print("No recording file or image loaded");
-                          _scaffoldKey.currentState.showSnackBar(
-                              noRecording);
-                        }
-                      }
-                    },
-                    color: const Color(0xFF679436),
-                    textColor: Colors.white,
-                    child: Text("Upload Recording".toUpperCase(),
-                        style: TextStyle(fontSize: 14)),
-                  ): CircularProgressIndicator(),
+                            }
+                          },
+                          color: const Color(0xFF679436),
+                          textColor: Colors.white,
+                          child: Text("Upload Recording".toUpperCase(),
+                              style: TextStyle(fontSize: 14)),
+                        )
+                      : CircularProgressIndicator(),
                 ]),
               ),
             ],

@@ -51,7 +51,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
         ): Container(
-          margin: EdgeInsets.only(top: 150.0),
+          margin: EdgeInsets.only(top: MediaQuery.of(context).size.height/6),
           child: Center(
             child: Text("User has no recordings.", style: GoogleFonts.ubuntu(
             textStyle: TextStyle(
@@ -73,8 +73,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     // TODO: implement build
     return Scaffold(
       appBar: AppBar(
-        title: Text("Profile"),
-        backgroundColor: const Color(0xFF679436),
+        title: Text("Profile", style: TextStyle(color: Colors.black),),
+        backgroundColor: Colors.white,
+        iconTheme: IconThemeData(color: Colors.black),
         centerTitle: true,
         actions: <Widget>[
           Container(

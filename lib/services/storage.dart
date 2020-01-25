@@ -65,4 +65,10 @@ class Storage {
     eventBus.fire(LoadingEvent(false));
     return downloadUrl;
   }
+
+  //TODO ~ Remove a particular recording and it's image
+  Future<void> removeRecordingFromDB(String userId, String recordingTitle) async {
+    await _storageReference.child("${userId}/profilePic").delete();
+    await _storageReference.child("${userId}/recordings/${recordingTitle}/image").delete();
+  }
 }

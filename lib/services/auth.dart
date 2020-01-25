@@ -32,7 +32,7 @@ class AuthService {
         return value;
       });
     }).catchError((error) {
-      print("No user found");
+      print("No user found $error");
       eventBus.fire(LoadingEvent(false));
       return null;
     });
@@ -43,6 +43,7 @@ class AuthService {
     eventBus.fire(LoadingEvent(true));
     return await _auth.createUserWithEmailAndPassword(email: emailAddress, password: password)
         .then((value) async {
+          print(value);
       userExtras.addAll({"id": value.user.uid, "email": value.user.email});
       eventBus.fire(LoadingEvent(false));
       return await _database.addNewUser(value.user.uid, userExtras);

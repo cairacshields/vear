@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:vear/services/database.dart';
+import 'package:vear/services/storage.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:vear/objects/recording.dart';
 import 'package:vear/screens/profile_screen.dart';
 import 'package:flutter_tags/tag.dart';
-import 'package:firebase_database/firebase_database.dart';
 import 'package:vear/screens/player_screen.dart';
 
 class RecordingListItem extends StatefulWidget {
@@ -22,11 +22,14 @@ class RecordingListItem extends StatefulWidget {
 
 class _RecordingListItemState extends State<RecordingListItem> {
   Database _database = Database();
+  Storage _storage = Storage();
   dynamic user;
 
   String currentUserLiked = "";
   int likes = 0;
   int disLikes = 0;
+
+  final recordingDeletedSnack = SnackBar(content: Text("Recording deleted, please refresh."));
 
   void submitLikeOrDislike(bool liked) async {
     await _database.likeOrDislikeRecording(liked, widget.creatorId, widget.currentUserId,
@@ -36,6 +39,23 @@ class _RecordingListItemState extends State<RecordingListItem> {
           });
     }).catchError((error){
       print("Error adding new like or dislike: $error");
+    });
+  }
+
+  void removeRecording() async {
+    await _storage.removeRecordingFromDB(widget.creatorId, widget.recording.recordingTitle)
+       .then((value){
+        print("Success: Recording deleted from storage!");
+      }).catchError((error){
+        print("Unable to delete the recording from storage: $error");
+      });
+
+    await _database.removeRecordingFromUser(widget.creatorId, widget.recording.recordingTitle)
+    .then((value){
+      print("Success: Recording deleted from database!");
+      Scaffold.of(context).showSnackBar(recordingDeletedSnack);
+    }).catchError((error){
+      print("Unable to delete the recording from database: $error");
     });
   }
 
@@ -274,7 +294,7 @@ class _RecordingListItemState extends State<RecordingListItem> {
               ],
             ),
             Divider(),
-            Container(
+            widget.currentUserId != widget.creatorId ? Container(
               margin: EdgeInsets.only(right: 10.0, left: 10.0),
               child: Row(
                 children: <Widget>[
@@ -316,6 +336,29 @@ class _RecordingListItemState extends State<RecordingListItem> {
                   ),
                 ],
               ),
+            ) :
+            Container(
+                child: FlatButton(
+                    onPressed: () async {
+                      await _database.removeRecordingFromUser(widget.creatorId, widget.recording.recordingTitle)
+                      .then((value){
+                        Scaffold.of(context).showSnackBar(SnackBar(content: Text("Removed recording, please refresh...")));
+                      }).catchError((error){
+                        print("Error removing recording: $error");
+                      });
+                    },
+                    child: Container(
+                      child: Row(
+                        children: <Widget>[
+                          Icon(Icons.close, color: Colors.black45,),
+                          Container(
+                            //margin: EdgeInsets.only(top: 5.0, right: 5.0),
+                            child: Text("Delete Recording"),
+                          ),
+                        ],
+                      ),
+                    )
+                )
             )
           ],
         ));
